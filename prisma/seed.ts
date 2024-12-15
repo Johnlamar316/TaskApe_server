@@ -28,13 +28,13 @@ async function main() {
 
   // Adjusted deletion order: child tables first, parent tables last
   const orderedFileNames = [
-    "taskAssignment.json",
+    "taskAssignment.json", // Children first
     "comment.json",
     "attachment.json",
     "task.json",
     "projectTeam.json",
-    "project.json",
-    "user.json",
+    "project.json", // Parent last
+    "user.json", // User may be parent to tasks and assignments
     "team.json",
   ];
 
@@ -50,9 +50,10 @@ async function main() {
 
     try {
       for (const data of jsonData) {
+        // Use `upsert` to avoid unique constraint issues
         await model.upsert({
           where: { id: data.id }, // Ensure uniqueness using the `id` field
-          update: {}, // If the record exists, don't update anything
+          update: data, // If the record exists, update it with new data
           create: data, // If the record doesn't exist, create it
         });
       }
