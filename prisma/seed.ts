@@ -1,17 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import path from "path";
-
 const prisma = new PrismaClient();
 
 async function deleteAllData(orderedFileNames: string[]) {
-  // Map file names to model names, capitalize first letter of each model
   const modelNames = orderedFileNames.map((fileName) => {
     const modelName = path.basename(fileName, path.extname(fileName));
     return modelName.charAt(0).toUpperCase() + modelName.slice(1);
   });
 
-  // Delete data in reverse order of dependencies (child-first, parent-last)
   for (const modelName of modelNames) {
     const model: any = prisma[modelName as keyof typeof prisma];
     try {
@@ -26,22 +23,19 @@ async function deleteAllData(orderedFileNames: string[]) {
 async function main() {
   const dataDirectory = path.join(__dirname, "seedData");
 
-  // Adjusted deletion order: child tables first, parent tables last
   const orderedFileNames = [
-    "taskAssignment.json", // Children first
-    "comment.json",
-    "attachment.json",
-    "task.json",
-    "projectTeam.json",
-    "project.json", // Parent last
-    "user.json", // User may be parent to tasks and assignments
     "team.json",
+    "project.json",
+    "projectTeam.json",
+    "user.json",
+    "task.json",
+    "attachment.json",
+    "comment.json",
+    "taskAssignment.json",
   ];
 
-  // Step 1: Clear existing data
   await deleteAllData(orderedFileNames);
 
-  // Step 2: Seed data
   for (const fileName of orderedFileNames) {
     const filePath = path.join(dataDirectory, fileName);
     const jsonData = JSON.parse(fs.readFileSync(filePath, "utf-8"));
@@ -50,12 +44,7 @@ async function main() {
 
     try {
       for (const data of jsonData) {
-        // Use `upsert` to avoid unique constraint issues
-        await model.upsert({
-          where: { id: data.id }, // Ensure uniqueness using the `id` field
-          update: data, // If the record exists, update it with new data
-          create: data, // If the record doesn't exist, create it
-        });
+        await model.create({ data });
       }
       console.log(`Seeded ${modelName} with data from ${fileName}`);
     } catch (error) {
